@@ -1,0 +1,28 @@
+
+# Environnement virtuel
+venv/
+env/
+*.venv
+
+# Variables d'environnement (contient les mots de passe/secrets)
+.env
+
+# Base de données locale
+db.sqlite3
+db.sqlite3-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Django
+media/
+staticfiles/
+*.log
+
+# Éditeurs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
