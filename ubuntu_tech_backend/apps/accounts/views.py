@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from .permissions import IsAdmin
 from .serializers import (
-    PasswordResetConfirmSerializer, PasswordResetRequestSerializer,
+    AdminCreateUserSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer,
     ProfileUpdateSerializer, RegisterSerializer, UserSerializer,
 )
 
@@ -49,6 +49,11 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
     filterset_fields = ["role", "is_active"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return AdminCreateUserSerializer
+        return UserSerializer
 
 
 class PasswordResetRequestView(APIView):

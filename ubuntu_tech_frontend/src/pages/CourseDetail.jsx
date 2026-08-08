@@ -174,6 +174,16 @@ function LessonPanel({ lesson, onCompleted }) {
         <div>
           <h2 className="text-xl font-bold">{lesson.title}</h2>
           <p className="mt-1 text-sm text-slate">{lesson.description}</p>
+          {lesson.resource_file && (
+            <a
+              href={lesson.resource_file}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-signal hover:underline"
+            >
+              📄 Télécharger le support de cours
+            </a>
+          )}
         </div>
         <button
           onClick={handleMarkCompleted}
@@ -206,20 +216,53 @@ function LessonPanel({ lesson, onCompleted }) {
 function QuizForm({ quiz, onResult }) {
   const [answers, setAnswers] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState(3);
+  const [error, setError] = useState("");
+  const [checkingAttempts, setCheckingAttempts] = useState(true);
+
+  useEffect(() => {
+    quizzesApi
+      .myAttempts()
+      .then(({ data }) => {
+        const used = data.filter((a) => a.quiz === quiz.id).length;
+        setAttemptsLeft(Math.max(0, 3 - used));
+      })
+      .finally(() => setCheckingAttempts(false));
+  }, [quiz.id]);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitting(true);
+    setError("");
     try {
       const { data } = await quizzesApi.submitAttempt(quiz.id, answers);
+      setAttemptsLeft((n) => Math.max(0, n - 1));
       onResult(data);
+    } catch (err) {
+      if (err.response?.status === 400) {
+        setAttemptsLeft(0);
+        setError(err.response.data.detail);
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
+  if (checkingAttempts) {
+    return <p className="mt-4 text-xs text-slate">Vérification des tentatives…</p>;
+  }
+
+  if (attemptsLeft <= 0 && !submitting) {
+    return (
+      <p className="mt-4 rounded-lg bg-paper px-4 py-3 text-sm text-slate">
+        {error || "Nombre maximum de tentatives atteint (3)."}
+      </p>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-6">
+      <p className="font-mono text-xs text-slate">{attemptsLeft} tentative(s) restante(s)</p>
       {quiz.questions.map((q) => (
         <fieldset key={q.id}>
           <legend className="text-sm font-medium text-navy">{q.text}</legend>

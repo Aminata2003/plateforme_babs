@@ -7,12 +7,19 @@ const learnerNav = [
   { to: "/sessions", label: "Rencontres", icon: CalendarIcon },
 ];
 
+const formateurNav = [
+  { to: "/admin/modules", label: "Modules", icon: BookIcon },
+  { to: "/admin/sessions", label: "Rencontres", icon: CalendarIcon },
+  { to: "/admin/devoirs", label: "Devoirs", icon: BookIcon },
+];
+
 const adminNav = [
   { to: "/admin", label: "Vue d'ensemble", icon: HomeIcon },
   { to: "/admin/modules", label: "Modules", icon: BookIcon },
   { to: "/admin/sessions", label: "Rencontres", icon: CalendarIcon },
   { to: "/admin/devoirs", label: "Devoirs", icon: BookIcon },
   { to: "/admin/apprenants", label: "Apprenants", icon: UsersIcon },
+  { to: "/admin/equipe", label: "Équipe", icon: UsersIcon },
 ];
 
 export default function AppShell() {
@@ -20,7 +27,7 @@ export default function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const nav = user?.role === "admin" ? adminNav : learnerNav;
+  const nav = user?.role === "admin" ? adminNav : user?.role === "formateur" ? formateurNav : learnerNav;
 
   function handleLogout() {
     logout();

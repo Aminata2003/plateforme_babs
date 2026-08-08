@@ -8,3 +8,9 @@ export const authApi = {
   requestPasswordReset: (email) => api.post("/auth/password-reset/", { email }),
   confirmPasswordReset: (payload) => api.post("/auth/password-reset-confirm/", payload),
 };
+
+export const usersApi = {
+  list: () => api.get("/users/"),
+  create: (payload) => api.post("/users/", payload),
+  remove: (id) => api.delete(`/users/${id}/`),
+};

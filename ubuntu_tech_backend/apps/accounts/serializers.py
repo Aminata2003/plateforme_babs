@@ -38,6 +38,22 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         fields = ["first_name", "last_name", "phone", "avatar"]
 
 
+class AdminCreateUserSerializer(serializers.ModelSerializer):
+    """Permet à l'admin de créer un compte formateur ou admin (rôle choisi explicitement)."""
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "first_name", "last_name", "phone", "password", "role"]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 

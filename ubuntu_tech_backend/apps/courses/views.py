@@ -70,14 +70,24 @@ class QuizViewSet(viewsets.ModelViewSet):
     queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+    MAX_ATTEMPTS = 3
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def submit_attempt(self, request, pk=None):
         """
         Corps attendu : {"answers": {"<question_id>": <choice_id>, ...}}
         Corrige automatiquement et enregistre le résultat de l'apprenant.
+        Limité à MAX_ATTEMPTS tentatives par apprenant et par quiz.
         """
         quiz = self.get_object()
+
+        already_attempted = QuizAttempt.objects.filter(quiz=quiz, user=request.user).count()
+        if already_attempted >= self.MAX_ATTEMPTS:
+            return Response(
+                {"detail": f"Nombre maximum de tentatives atteint ({self.MAX_ATTEMPTS})."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         answers = request.data.get("answers", {})
         questions = quiz.questions.prefetch_related("choices")
         total = questions.count()

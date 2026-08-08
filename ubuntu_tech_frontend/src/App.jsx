@@ -19,6 +19,7 @@ import AdminLearners from "./pages/admin/AdminLearners.jsx";
 import AdminLearnerDetail from "./pages/admin/AdminLearnerDetail.jsx";
 import AdminDevoirs from "./pages/admin/AdminDevoirs.jsx";
 import AdminSessions from "./pages/admin/AdminSessions.jsx";
+import AdminTeam from "./pages/admin/AdminTeam.jsx";
 
 export default function App() {
   return (
@@ -128,6 +129,14 @@ export default function App() {
           element={
             <ProtectedRoute roles={["admin", "formateur"]}>
               <AdminSessions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/equipe"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminTeam />
             </ProtectedRoute>
           }
         />
