@@ -1,15 +1,17 @@
 from django.utils import timezone
-from rest_framework import viewsets, status
+from rest_framework import generics, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminOrFormateur, IsOwnerOrAdmin
 
-from .models import Devoir, Lesson, LessonProgress, Module, Quiz, QuizAttempt, Submission
+from .models import (
+    Choice, Devoir, Lesson, LessonProgress, Module, Question, Quiz, QuizAttempt, Submission,
+)
 from .serializers import (
-    DevoirSerializer, LessonProgressSerializer, LessonSerializer,
-    ModuleListSerializer, ModuleSerializer, QuizAttemptSerializer,
+    ChoiceWriteSerializer, DevoirSerializer, LessonProgressSerializer, LessonSerializer,
+    ModuleListSerializer, ModuleSerializer, QuestionWriteSerializer, QuizAttemptSerializer,
     QuizSerializer, SubmissionSerializer,
 )
 
@@ -17,10 +19,18 @@ from .serializers import (
 class ModuleViewSet(viewsets.ModelViewSet):
     """
     Gestion des modules de formation.
-    Lecture : tout utilisateur connecté. Création/édition : admin ou formateur.
+    Lecture : tout utilisateur connecté (apprenant ne voit que les modules publiés).
+    Création/édition : admin ou formateur.
     """
     queryset = Module.objects.all().order_by("order")
     permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if not (user.is_admin or user.is_formateur):
+            qs = qs.filter(is_published=True)
+        return qs
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -39,6 +49,9 @@ class LessonViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        user = self.request.user
+        if not (user.is_admin or user.is_formateur):
+            qs = qs.filter(is_published=True)
         module_id = self.request.query_params.get("module")
         if module_id:
             qs = qs.filter(module_id=module_id)
@@ -78,6 +91,43 @@ class QuizViewSet(viewsets.ModelViewSet):
             quiz=quiz, user=request.user, score=score, passed=score >= quiz.passing_score,
         )
         return Response(QuizAttemptSerializer(attempt).data, status=status.HTTP_201_CREATED)
+
+
+class MyQuizAttemptsView(generics.ListAPIView):
+    """Historique de mes propres tentatives de quiz (toutes confondues), pour mon tableau de bord."""
+    serializer_class = QuizAttemptSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return QuizAttempt.objects.filter(user=self.request.user).select_related("quiz", "quiz__lesson")
+
+
+class QuestionViewSet(viewsets.ModelViewSet):
+    """Gestion des questions d'un quiz (admin/formateur) - filtrable par ?quiz=<id>."""
+    queryset = Question.objects.all().order_by("order")
+    serializer_class = QuestionWriteSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        quiz_id = self.request.query_params.get("quiz")
+        if quiz_id:
+            qs = qs.filter(quiz_id=quiz_id)
+        return qs
+
+
+class ChoiceViewSet(viewsets.ModelViewSet):
+    """Gestion des choix de réponse d'une question (admin/formateur) - filtrable par ?question=<id>."""
+    queryset = Choice.objects.all()
+    serializer_class = ChoiceWriteSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        question_id = self.request.query_params.get("question")
+        if question_id:
+            qs = qs.filter(question_id=question_id)
+        return qs
 
 
 class DevoirViewSet(viewsets.ModelViewSet):

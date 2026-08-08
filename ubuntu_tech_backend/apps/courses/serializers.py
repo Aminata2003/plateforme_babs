@@ -20,18 +20,32 @@ class ChoicePublicSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
-    choices = ChoiceSerializer(many=True)
+    choices = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
         fields = ["id", "text", "order", "choices"]
 
-    def create(self, validated_data):
-        choices_data = validated_data.pop("choices")
-        question = Question.objects.create(**validated_data)
-        for choice in choices_data:
-            Choice.objects.create(question=question, **choice)
-        return question
+    def get_choices(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated and (user.is_admin or user.is_formateur):
+            return ChoiceSerializer(obj.choices.all(), many=True).data
+        return ChoicePublicSerializer(obj.choices.all(), many=True).data
+
+
+class QuestionWriteSerializer(serializers.ModelSerializer):
+    """Utilisé par l'admin/formateur pour créer/modifier une question (choix ajoutés séparément)."""
+    class Meta:
+        model = Question
+        fields = ["id", "quiz", "text", "order"]
+
+
+class ChoiceWriteSerializer(serializers.ModelSerializer):
+    """Utilisé par l'admin/formateur pour créer/modifier un choix de réponse."""
+    class Meta:
+        model = Choice
+        fields = ["id", "question", "text", "is_correct"]
 
 
 class QuizSerializer(serializers.ModelSerializer):
@@ -69,8 +83,8 @@ class LessonSerializer(serializers.ModelSerializer):
 
 
 class ModuleSerializer(serializers.ModelSerializer):
-    lessons = LessonSerializer(many=True, read_only=True)
-    lessons_count = serializers.IntegerField(source="lessons.count", read_only=True)
+    lessons = serializers.SerializerMethodField()
+    lessons_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Module
@@ -80,14 +94,37 @@ class ModuleSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["created_by", "created_at"]
 
+    def _is_staff(self):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return bool(user and user.is_authenticated and (user.is_admin or user.is_formateur))
+
+    def get_lessons(self, obj):
+        queryset = obj.lessons.all().order_by("order")
+        if not self._is_staff():
+            queryset = queryset.filter(is_published=True)
+        return LessonSerializer(queryset, many=True, context=self.context).data
+
+    def get_lessons_count(self, obj):
+        if self._is_staff():
+            return obj.lessons.count()
+        return obj.lessons.filter(is_published=True).count()
+
 
 class ModuleListSerializer(serializers.ModelSerializer):
     """Version allégée pour les listes (sans le détail des leçons)."""
-    lessons_count = serializers.IntegerField(source="lessons.count", read_only=True)
+    lessons_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Module
         fields = ["id", "title", "description", "order", "is_published", "lessons_count"]
+
+    def get_lessons_count(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated and (user.is_admin or user.is_formateur):
+            return obj.lessons.count()
+        return obj.lessons.filter(is_published=True).count()
 
 
 class DevoirSerializer(serializers.ModelSerializer):
@@ -97,13 +134,20 @@ class DevoirSerializer(serializers.ModelSerializer):
 
 
 class SubmissionSerializer(serializers.ModelSerializer):
+    user_full_name = serializers.SerializerMethodField()
+    devoir_title = serializers.CharField(source="devoir.title", read_only=True)
+    devoir_max_score = serializers.IntegerField(source="devoir.max_score", read_only=True)
+
     class Meta:
         model = Submission
         fields = [
-            "id", "devoir", "user", "file", "comment",
-            "grade", "feedback", "submitted_at", "graded_at",
+            "id", "devoir", "devoir_title", "devoir_max_score", "user", "user_full_name",
+            "file", "comment", "grade", "feedback", "submitted_at", "graded_at",
         ]
         read_only_fields = ["user", "submitted_at", "graded_at"]
+
+    def get_user_full_name(self, obj):
+        return obj.user.get_full_name()
 
 
 class LessonProgressSerializer(serializers.ModelSerializer):

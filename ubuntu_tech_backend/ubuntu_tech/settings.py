@@ -117,3 +117,19 @@ PAYTECH_CANCEL_URL = os.environ.get("PAYTECH_CANCEL_URL", "https://votre-domaine
 CERTIFICATE_VERIFY_BASE_URL = os.environ.get(
     "CERTIFICATE_VERIFY_BASE_URL", "https://votre-domaine.com/verifier-certificat/",
 )
+
+# URL du front-end (utilisée pour construire les liens dans les emails, ex. réinitialisation de mot de passe)
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+# Email : affiché dans la console en local par défaut. En production, définir EMAIL_HOST etc.
+# via les variables d'environnement pour utiliser un vrai serveur SMTP.
+if os.environ.get("EMAIL_HOST"):
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = os.environ.get("EMAIL_HOST")
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True") == "True"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "no-reply@ubuntutech.sn")

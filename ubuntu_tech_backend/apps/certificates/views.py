@@ -30,14 +30,14 @@ class MyCertificateView(APIView):
             )
         certificate, _ = Certificate.objects.get_or_create(user=user)
         generate_certificate_pdf(certificate)
-        return Response(CertificateSerializer(certificate).data, status=201)
+        return Response(CertificateSerializer(certificate, context={"request": request}).data, status=201)
 
     def get(self, request):
         try:
             certificate = request.user.certificate
         except Certificate.DoesNotExist:
             return Response({"detail": "Aucun certificat généré."}, status=404)
-        return Response(CertificateSerializer(certificate).data)
+        return Response(CertificateSerializer(certificate, context={"request": request}).data)
 
 
 class AdminCertificateView(APIView):
@@ -54,7 +54,7 @@ class AdminCertificateView(APIView):
         certificate.issued_by = request.user
         certificate.save()
         generate_certificate_pdf(certificate)
-        return Response(CertificateSerializer(certificate).data, status=201)
+        return Response(CertificateSerializer(certificate, context={"request": request}).data, status=201)
 
 
 class CertificateViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-paper text-navy font-body antialiased;
+}
+
+h1, h2, h3, h4 {
+  @apply font-display text-navy;
+}
+
+::selection {
+  @apply bg-gold/30 text-navy;
+}
+
+:focus-visible {
+  outline: 2px solid theme("colors.signal.DEFAULT");
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Eyebrow / kicker mono label used above section headings */
+.eyebrow {
+  @apply font-mono text-xs tracking-[0.18em] uppercase text-signal font-medium;
+}
+
+/* Fade-in-up reveal for scroll-triggered sections */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: reveal-in 0.6s ease-out forwards;
+}
+.reveal-delay-1 { animation-delay: 0.08s; }
+.reveal-delay-2 { animation-delay: 0.16s; }
+.reveal-delay-3 { animation-delay: 0.24s; }
+
+@keyframes reveal-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

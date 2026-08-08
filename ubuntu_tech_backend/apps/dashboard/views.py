@@ -63,3 +63,70 @@ class DashboardStatsView(APIView):
             "devoirs_total": devoirs_total,
             "upcoming_sessions": list(upcoming_sessions),
         })
+
+
+class LearnersOverviewView(APIView):
+    """Liste de tous les apprenants avec un résumé de leur progression, pour l'admin."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        published_modules = Module.objects.filter(is_published=True)
+        total_lessons = sum(m.lessons.filter(is_published=True).count() for m in published_modules)
+
+        data = []
+        for learner in User.objects.filter(role="apprenant").order_by("-date_joined"):
+            completed = LessonProgress.objects.filter(
+                user=learner, lesson__module__in=published_modules, lesson__is_published=True,
+            ).values("lesson_id").distinct().count()
+            quiz_avg = QuizAttempt.objects.filter(user=learner).aggregate(avg=Avg("score"))["avg"] or 0
+            data.append({
+                "id": learner.id,
+                "full_name": learner.get_full_name(),
+                "email": learner.email,
+                "has_active_enrollment": hasattr(learner, "enrollment") and learner.enrollment.is_active,
+                "progress_pct": round((completed / total_lessons) * 100) if total_lessons else 0,
+                "quiz_avg_score": round(quiz_avg, 1),
+            })
+        return Response(data)
+
+
+class LearnerDetailView(APIView):
+    """Détail de la progression d'un apprenant précis, pour l'admin."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request, user_id):
+        try:
+            learner = User.objects.get(id=user_id, role="apprenant")
+        except User.DoesNotExist:
+            return Response({"detail": "Apprenant introuvable."}, status=404)
+
+        modules_detail = []
+        for module in Module.objects.filter(is_published=True):
+            lessons = list(module.lessons.filter(is_published=True))
+            done = LessonProgress.objects.filter(user=learner, lesson__in=lessons).count()
+            modules_detail.append({
+                "module": module.title, "completed": done, "total": len(lessons),
+            })
+
+        attempts = QuizAttempt.objects.filter(user=learner).select_related("quiz")
+        submissions = Submission.objects.filter(user=learner).select_related("devoir")
+
+        return Response({
+            "id": learner.id,
+            "full_name": learner.get_full_name(),
+            "email": learner.email,
+            "has_active_enrollment": hasattr(learner, "enrollment") and learner.enrollment.is_active,
+            "modules": modules_detail,
+            "quiz_attempts": [
+                {
+                    "quiz": a.quiz.title, "score": a.score, "passed": a.passed,
+                    "submitted_at": a.submitted_at,
+                } for a in attempts
+            ],
+            "submissions": [
+                {
+                    "devoir": s.devoir.title, "grade": s.grade, "max_score": s.devoir.max_score,
+                    "submitted_at": s.submitted_at,
+                } for s in submissions
+            ],
+        })
