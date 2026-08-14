@@ -16,6 +16,17 @@ from .serializers import (
 )
 
 
+def _as_int_or_none(value):
+    """Convertit une valeur de query param en entier, ou None si invalide/absente
+    (au lieu de laisser Django planter avec une 500 sur un id du type 'undefined')."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 class ModuleViewSet(viewsets.ModelViewSet):
     """
     Gestion des modules de formation.
@@ -52,9 +63,11 @@ class LessonViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not (user.is_admin or user.is_formateur):
             qs = qs.filter(is_published=True)
-        module_id = self.request.query_params.get("module")
-        if module_id:
-            qs = qs.filter(module_id=module_id)
+        module_id = _as_int_or_none(self.request.query_params.get("module"))
+        if self.request.query_params.get("module") is not None:
+            # Un ?module= fourni mais invalide (ex. "undefined") ne doit renvoyer aucun résultat,
+            # pas planter le serveur.
+            qs = qs.filter(module_id=module_id) if module_id is not None else qs.none()
         return qs
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
@@ -120,9 +133,9 @@ class QuestionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        quiz_id = self.request.query_params.get("quiz")
-        if quiz_id:
-            qs = qs.filter(quiz_id=quiz_id)
+        if self.request.query_params.get("quiz") is not None:
+            quiz_id = _as_int_or_none(self.request.query_params.get("quiz"))
+            qs = qs.filter(quiz_id=quiz_id) if quiz_id is not None else qs.none()
         return qs
 
 
@@ -134,9 +147,9 @@ class ChoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        question_id = self.request.query_params.get("question")
-        if question_id:
-            qs = qs.filter(question_id=question_id)
+        if self.request.query_params.get("question") is not None:
+            question_id = _as_int_or_none(self.request.query_params.get("question"))
+            qs = qs.filter(question_id=question_id) if question_id is not None else qs.none()
         return qs
 
 
@@ -148,9 +161,9 @@ class DevoirViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        module_id = self.request.query_params.get("module")
-        if module_id:
-            qs = qs.filter(module_id=module_id)
+        if self.request.query_params.get("module") is not None:
+            module_id = _as_int_or_none(self.request.query_params.get("module"))
+            qs = qs.filter(module_id=module_id) if module_id is not None else qs.none()
         return qs
 
 
@@ -166,8 +179,10 @@ class SubmissionViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = Submission.objects.all().order_by("-submitted_at")
         if user.is_admin or user.is_formateur:
-            devoir_id = self.request.query_params.get("devoir")
-            return qs.filter(devoir_id=devoir_id) if devoir_id else qs
+            if self.request.query_params.get("devoir") is not None:
+                devoir_id = _as_int_or_none(self.request.query_params.get("devoir"))
+                return qs.filter(devoir_id=devoir_id) if devoir_id is not None else qs.none()
+            return qs
         return qs.filter(user=user)
 
     def perform_create(self, serializer):

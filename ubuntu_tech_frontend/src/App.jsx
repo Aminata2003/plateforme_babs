@@ -37,6 +37,14 @@ export default function App() {
       {/* Espace connecté : sidebar applicative */}
       <Route element={<AppShell />}>
         <Route
+          path="/profil"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/cours"
           element={
             <ProtectedRoute>
@@ -53,14 +61,6 @@ export default function App() {
           }
         />
         <Route
-          path="/profil"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/tableau-de-bord"
           element={
             <ProtectedRoute roles={["apprenant"]}>
@@ -68,6 +68,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/sessions"
+          element={
+            <ProtectedRoute roles={["apprenant"]}>
+              <Sessions />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Espace propriétaire */}
         <Route
           path="/admin"
           element={
@@ -93,30 +103,6 @@ export default function App() {
           }
         />
         <Route
-          path="/admin/apprenants"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <AdminLearners />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/apprenants/:id"
-          element={
-            <ProtectedRoute roles={["admin"]}>
-              <AdminLearnerDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/sessions"
-          element={
-            <ProtectedRoute roles={["apprenant"]}>
-              <Sessions />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/admin/devoirs"
           element={
             <ProtectedRoute roles={["admin", "formateur"]}>
@@ -129,6 +115,22 @@ export default function App() {
           element={
             <ProtectedRoute roles={["admin", "formateur"]}>
               <AdminSessions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/apprenants"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminLearners />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/apprenants/:id"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminLearnerDetail />
             </ProtectedRoute>
           }
         />

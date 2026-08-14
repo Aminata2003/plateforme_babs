@@ -1,64 +1,164 @@
-# Ubuntu Tech — Backend (API)
+# Ubuntu Tech — Backend
 
-Backend Django + DRF de la plateforme de formation en bureautique et informatique.
+API du backend de **Ubuntu Tech**, plateforme de formation en ligne en bureautique et
+informatique (Word, Excel, PowerPoint), avec parcours structuré, quiz, devoirs, rencontres
+en direct, bootcamps, paiement et certification.
 
-## Structure
+Construit avec **Django 5.2** + **Django REST Framework**, pensé pour être consommé par le
+front-end React du dépôt `ubuntu_tech_frontend`.
+
+---
+
+## Sommaire
+
+- [Stack technique](#stack-technique)
+- [Fonctionnalités](#fonctionnalités)
+- [Structure du projet](#structure-du-projet)
+- [Installation](#installation)
+- [Variables d'environnement](#variables-denvironnement)
+- [Rôles utilisateurs](#rôles-utilisateurs)
+- [Référence API](#référence-api)
+- [Paiement (PayTech)](#paiement-paytech)
+- [Emails](#emails)
+- [Limites connues / points à surveiller](#limites-connues--points-à-surveiller)
+- [Tests](#tests)
+
+---
+
+## Stack technique
+
+| Composant | Choix |
+|---|---|
+| Framework | Django 5.2 + Django REST Framework |
+| Base de données | PostgreSQL (SQLite en secours si `DATABASE_URL` absent) |
+| Authentification | JWT (SimpleJWT), connexion par email |
+| Paiement | PayTech (Wave, Orange Money, Free Money, Carte Bancaire) |
+| Génération de PDF | ReportLab (certificats) |
+| QR code | `qrcode` |
+| Stockage médias | Local en développement (`MEDIA_ROOT`), Cloudinary prêt à activer en prod |
+| Emails | Console en développement, SMTP configurable en production |
+
+## Fonctionnalités
+
+- **Comptes & rôles** : apprenant, formateur, admin (propriétaire) — inscription publique,
+  connexion JWT, réinitialisation de mot de passe par email, profil avec photo
+- **Modules & leçons** : modules organisés par ordre, leçons vidéo (YouTube) avec support de
+  cours téléchargeable, suivi de progression par apprenant
+- **Quiz** : questions à choix multiples, correction automatique, limité à 3 tentatives par
+  apprenant et par quiz, bonnes réponses jamais exposées côté apprenant avant tentative
+- **Devoirs** : dépôt de fichier par l'apprenant, notation et commentaire par
+  l'admin/formateur
+- **Rencontres & bootcamps** : planification par l'admin, inscription (obligatoire pour les
+  bootcamps), liste des participants
+- **Paiement** : forfait unique pour toute la formation via PayTech, activation automatique
+  de l'inscription (`Enrollment`) via webhook IPN
+- **Certificats** : génération PDF avec QR code de vérification publique, logo et couleurs de
+  la marque, NINEA de l'entreprise
+- **Tableau de bord admin** : statistiques globales, évolution des inscriptions, liste des
+  apprenants avec progression détaillée, file de devoirs à corriger
+
+## Structure du projet
 
 ```
-ubuntu_tech/          → configuration du projet (settings, urls)
-apps/accounts/        → utilisateurs, rôles (admin/formateur/apprenant), auth JWT
-apps/courses/         → modules, leçons (vidéos YouTube), quiz, devoirs, soumissions, progression
-apps/dashboard/       → statistiques admin (évolution des participants)
+ubuntu_tech_backend/
+├── manage.py
+├── requirements.txt
+├── .env.example
+├── ubuntu_tech/            → configuration du projet (settings, urls)
+└── apps/
+    ├── accounts/            → utilisateurs, rôles, auth JWT, mot de passe oublié
+    ├── courses/              → modules, leçons, quiz, devoirs, soumissions, progression
+    ├── live_sessions/        → rencontres hebdomadaires et bootcamps
+    ├── payments/             → intégration PayTech
+    ├── certificates/         → génération PDF + vérification QR code
+    └── dashboard/            → statistiques admin, vue d'ensemble des apprenants
 ```
 
-## Démarrage local
+## Installation
 
 ```bash
 python -m venv venv
 source venv/bin/activate        # Windows : venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env             # puis renseigner les variables
+cp .env.example .env             # puis renseigner les variables (voir ci-dessous)
 
-python manage.py makemigrations
 python manage.py migrate
-python manage.py createsuperuser # pour créer le premier compte admin
+python manage.py createsuperuser # crée automatiquement un compte role=admin
 python manage.py runserver
 ```
 
-Par défaut (sans `DATABASE_URL` défini), le projet utilise SQLite pour tester rapidement en local.
-Pour la production, définir `DATABASE_URL` (ex. vers Neon/Postgres).
+Le serveur écoute par défaut sur `http://127.0.0.1:8000`.
 
-## Rôles
+> Sans `DATABASE_URL` défini, le projet utilise SQLite pour tester rapidement en local.
+> Pour la production, définir `DATABASE_URL` vers une base PostgreSQL.
 
-Le champ `role` du modèle `User` (`apps/accounts/models.py`) définit 3 profils :
-- `admin` → propriétaire de la plateforme (Ubuntu Tech) : gère tout
-- `formateur` → peut créer/modifier les contenus (modules, leçons, quiz, devoirs)
-- `apprenant` → accès en lecture + soumission de devoirs/quiz
+## Variables d'environnement
 
-Le premier compte admin se crée via `createsuperuser`, puis son `role` peut être mis à `admin`
-soit dans l'admin Django, soit directement en base.
+| Variable | Description | Défaut |
+|---|---|---|
+| `SECRET_KEY` | Clé secrète Django | à définir (obligatoire en prod) |
+| `DEBUG` | Mode debug | `True` |
+| `ALLOWED_HOSTS` | Hôtes autorisés, séparés par virgules | `*` |
+| `DATABASE_URL` | URL de connexion PostgreSQL | SQLite local si absent |
+| `CORS_ALLOWED_ORIGINS` | Origines front autorisées (prod uniquement) | — |
+| `FRONTEND_URL` | Base des liens envoyés par email (ex. réinit. mot de passe) | `http://localhost:3000` |
+| `PAYTECH_API_KEY` / `PAYTECH_API_SECRET` | Identifiants PayTech | — |
+| `PAYTECH_ENV` | `test` ou `production` | `test` |
+| `PAYTECH_IPN_URL` | URL de notification PayTech (doit être en **HTTPS**) | — |
+| `PAYTECH_SUCCESS_URL` / `PAYTECH_CANCEL_URL` | Redirections post-paiement | — |
+| `CERTIFICATE_VERIFY_BASE_URL` | Base de l'URL de vérification des certificats | — |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | SMTP (si absents → emails affichés dans la console) | — |
+| `DEFAULT_FROM_EMAIL` | Adresse d'expédition des emails | `no-reply@ubuntutech.sn` |
 
-## Endpoints principaux
+## Rôles utilisateurs
 
-| Endpoint | Description |
-|---|---|
-| `POST /api/auth/register/` | Inscription (apprenant) |
-| `POST /api/auth/login/` | Connexion (retourne access + refresh JWT) |
-| `GET/PATCH /api/auth/me/` | Voir/modifier mon profil |
-| `GET/POST /api/modules/` | Liste / création de modules |
-| `GET/POST /api/lessons/?module=<id>` | Leçons d'un module |
-| `POST /api/lessons/<id>/mark_completed/` | Apprenant marque une leçon comme vue |
-| `GET/POST /api/quizzes/` | Quiz (avec questions/choix imbriqués) |
-| `POST /api/quizzes/<id>/submit_attempt/` | Soumettre les réponses, correction automatique |
-| `GET/POST /api/devoirs/?module=<id>` | Devoirs d'un module |
-| `GET/POST /api/submissions/` | Rendus de devoirs (scopés à l'utilisateur si apprenant) |
-| `POST /api/submissions/<id>/grade/` | Noter un rendu (formateur/admin) |
-| `GET /api/dashboard/stats/` | Tableau de bord admin : évolution des participants, progression, scores |
+Champ `role` sur le modèle `User` :
 
-## Prochaines étapes suggérées
+- **`admin`** — propriétaire de la plateforme : accès complet (statistiques, gestion des
+  modules, des apprenants, de l'équipe)
+- **`formateur`** — créé par un admin : peut gérer les modules/leçons/quiz/devoirs, planifier
+  des sessions, corriger les devoirs
+- **`apprenant`** — inscription publique par défaut : accès aux contenus payés, quiz, devoirs,
+  sessions, certificat
 
-- Module `payments` (agrégateur Wave/Orange Money/Free Money/carte)
-- Module `sessions` (rencontres hebdomadaires + bootcamps, lien Zoom/Meet)
-- Module `certificates` (génération PDF + QR code)
-- Intégration Cloudinary pour les fichiers (ressources, avatars, rendus de devoirs)
+## Référence API
+
+La liste complète des routes (méthode, accès, description) est disponible dans
+[`API_REFERENCE.md`](./API_REFERENCE.md) à la racine du projet.
+
+## Paiement (PayTech)
+
+- Un seul forfait couvre toute la formation (`Enrollment` par utilisateur, pas par module)
+- `POST /api/payments/initiate/` crée le paiement et renvoie l'URL PayTech
+- `POST /api/payments/ipn/` reçoit la confirmation (signature vérifiée par HMAC) et active
+  automatiquement l'inscription de l'apprenant
+- **En développement**, PayTech exigeant du HTTPS pour l'IPN, un tunnel comme
+  [ngrok](https://ngrok.com) est nécessaire pour tester le flux complet en local
+
+## Emails
+
+Aucun email n'est envoyé en local par défaut (backend `console` : affiché dans le terminal
+`runserver`). Pour de vrais envois, définir `EMAIL_HOST` et les variables associées — voir la
+table des variables d'environnement.
+
+## Limites connues / points à surveiller
+
+Points identifiés pendant le développement, utiles pour une revue :
+
+- **Accès aux modules non forcé côté serveur** : la lecture des modules/leçons publiés n'est
+  pas encore strictement bloquée pour un apprenant non inscrit (`Enrollment.is_active=False`)
+  au niveau de l'API — le blocage est fait côté front-end. À renforcer côté backend avant une
+  mise en production si c'est jugé nécessaire.
+- **`env=test` PayTech** : tant que le compte PayTech n'est pas activé en production, les
+  paiements restent en mode test (débit fictif).
+- **NINEA sur le certificat** : actuellement en dur dans `apps/certificates/generator.py`
+  (`PLATFORM_NINEA`) plutôt qu'en base — à changer si l'entité change.
+
+## Tests
+
+Les tests unitaires sont en cours d'écriture (`apps/<app>/tests.py`). Lancer la suite avec :
+
+```bash
+python manage.py test
+```
