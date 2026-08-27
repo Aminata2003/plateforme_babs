@@ -11,6 +11,7 @@ export const authApi = {
 
 export const usersApi = {
   list: () => api.get("/users/"),
+  listLearners: () => api.get("/users/?role=apprenant&is_active=true"),
   create: (payload) => api.post("/users/", payload),
   remove: (id) => api.delete(`/users/${id}/`),
 };

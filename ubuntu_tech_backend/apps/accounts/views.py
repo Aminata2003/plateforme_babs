@@ -8,7 +8,7 @@ from rest_framework import generics, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrFormateur
 from .serializers import (
     AdminCreateUserSerializer, PasswordResetConfirmSerializer, PasswordResetRequestSerializer,
     ProfileUpdateSerializer, RegisterSerializer, UserSerializer,
@@ -49,6 +49,11 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
     filterset_fields = ["role", "is_active"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAdminOrFormateur()]
+        return [IsAdmin()]
 
     def get_serializer_class(self):
         if self.action == "create":

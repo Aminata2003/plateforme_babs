@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminOrFormateur
+from apps.courses.models import Enrollment
 
 from .eligibility import is_eligible_for_certificate
 from .generator import generate_certificate_pdf
@@ -23,6 +24,8 @@ class MyCertificateView(APIView):
 
     def post(self, request):
         user = request.user
+        if not Enrollment.objects.filter(user=user, is_active=True).exists():
+            return Response({"detail": "Une inscription active est nécessaire pour obtenir un certificat."}, status=403)
         if not is_eligible_for_certificate(user):
             return Response(
                 {"detail": "Parcours non terminé : toutes les leçons doivent être complétées."},

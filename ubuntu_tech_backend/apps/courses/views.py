@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAdminOrFormateur, IsOwnerOrAdmin
+from apps.accounts.permissions import IsActiveLearnerOrStaff, IsAdminOrFormateur, IsOwnerOrAdmin
 
 from .models import (
     Choice, Devoir, Lesson, LessonProgress, Module, Question, Quiz, QuizAttempt, Submission,
@@ -56,7 +56,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     """Gestion des leçons (vidéo YouTube + ressources) au sein d'un module."""
     queryset = Lesson.objects.all().order_by("order")
     serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+    permission_classes = [IsAuthenticated, IsActiveLearnerOrStaff]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -70,7 +70,7 @@ class LessonViewSet(viewsets.ModelViewSet):
             qs = qs.filter(module_id=module_id) if module_id is not None else qs.none()
         return qs
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsActiveLearnerOrStaff])
     def mark_completed(self, request, pk=None):
         """L'apprenant marque la leçon comme terminée (utilisé aussi pour le suivi de progression)."""
         lesson = self.get_object()
@@ -82,7 +82,7 @@ class QuizViewSet(viewsets.ModelViewSet):
     """Gestion des quiz. La correction est automatique via /submit_attempt/."""
     queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+    permission_classes = [IsAuthenticated, IsActiveLearnerOrStaff]
     MAX_ATTEMPTS = 3
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
@@ -102,6 +102,8 @@ class QuizViewSet(viewsets.ModelViewSet):
             )
 
         answers = request.data.get("answers", {})
+        if not isinstance(answers, dict):
+            return Response({"detail": "Le champ answers doit être un objet."}, status=400)
         questions = quiz.questions.prefetch_related("choices")
         total = questions.count()
         correct = 0
@@ -157,7 +159,7 @@ class DevoirViewSet(viewsets.ModelViewSet):
     """Gestion des devoirs/exercices pratiques."""
     queryset = Devoir.objects.all().order_by("-created_at")
     serializer_class = DevoirSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrFormateur]
+    permission_classes = [IsAuthenticated, IsActiveLearnerOrStaff]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -173,7 +175,13 @@ class SubmissionViewSet(viewsets.ModelViewSet):
     Un apprenant ne voit que ses propres soumissions ; admin/formateur voient tout (pour corriger).
     """
     serializer_class = SubmissionSerializer
-    permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+    permission_classes = [IsAuthenticated, IsActiveLearnerOrStaff, IsOwnerOrAdmin]
+
+    def get_serializer_class(self):
+        if self.action == "create" and not (self.request.user.is_admin or self.request.user.is_formateur):
+            from .serializers import SubmissionCreateSerializer
+            return SubmissionCreateSerializer
+        return SubmissionSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -188,11 +196,25 @@ class SubmissionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def perform_update(self, serializer):
+        if not (self.request.user.is_admin or self.request.user.is_formateur):
+            protected_fields = {"devoir", "grade", "feedback", "user"}
+            if protected_fields.intersection(serializer.validated_data):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Ces champs sont réservés à l'équipe pédagogique.")
+        serializer.save()
+
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAdminOrFormateur])
     def grade(self, request, pk=None):
         """Notation d'un rendu par le formateur/admin : {"grade": 8, "feedback": "..."}"""
         submission = self.get_object()
-        submission.grade = request.data.get("grade")
+        try:
+            grade = int(request.data.get("grade"))
+        except (TypeError, ValueError):
+            return Response({"detail": "La note doit être un nombre entier."}, status=400)
+        if not 0 <= grade <= submission.devoir.max_score:
+            return Response({"detail": "La note doit être comprise entre 0 et la note maximale."}, status=400)
+        submission.grade = grade
         submission.feedback = request.data.get("feedback", "")
         submission.graded_at = timezone.now()
         submission.save()

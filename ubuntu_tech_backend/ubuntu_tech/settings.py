@@ -112,6 +112,7 @@ PAYTECH_ENV = os.environ.get("PAYTECH_ENV", "test")  # "test" tant que le compte
 PAYTECH_IPN_URL = os.environ.get("PAYTECH_IPN_URL", "https://votre-domaine.com/api/payments/ipn/")
 PAYTECH_SUCCESS_URL = os.environ.get("PAYTECH_SUCCESS_URL", "https://votre-domaine.com/paiement-reussi")
 PAYTECH_CANCEL_URL = os.environ.get("PAYTECH_CANCEL_URL", "https://votre-domaine.com/paiement-annule")
+COURSE_PRICE_XOF = int(os.environ.get("COURSE_PRICE_XOF", "45000"))
 
 # Certificats : base de l'URL publique de vérification (scannée via le QR code)
 CERTIFICATE_VERIFY_BASE_URL = os.environ.get(

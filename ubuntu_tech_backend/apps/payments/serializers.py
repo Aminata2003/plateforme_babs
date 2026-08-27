@@ -14,8 +14,6 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class InitiatePaymentSerializer(serializers.Serializer):
-    item_name = serializers.CharField(max_length=200)
-    amount = serializers.IntegerField(min_value=1)
     target_payment = serializers.CharField(
         max_length=100, required=False, allow_blank=True,
         help_text='"Wave", "Orange Money", "Free Money", "Carte Bancaire" ou vide pour toutes les méthodes',

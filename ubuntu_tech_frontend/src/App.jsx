@@ -12,13 +12,13 @@ import CourseDetail from "./pages/CourseDetail.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Sessions from "./pages/Sessions.jsx";
 import Profile from "./pages/Profile.jsx";
-import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
-import AdminModules from "./pages/admin/AdminModules.jsx";
+import AdminDashboard from "./pages/admin/Admindashboard.jsx";
+import AdminModules from "./pages/admin/adminmodules.jsx";
 import AdminModuleDetail from "./pages/admin/AdminModuleDetail.jsx";
 import AdminLearners from "./pages/admin/AdminLearners.jsx";
 import AdminLearnerDetail from "./pages/admin/AdminLearnerDetail.jsx";
 import AdminDevoirs from "./pages/admin/AdminDevoirs.jsx";
-import AdminSessions from "./pages/admin/AdminSessions.jsx";
+import AdminSessions from "./pages/admin/Adminsessions.jsx";
 import AdminTeam from "./pages/admin/AdminTeam.jsx";
 
 export default function App() {

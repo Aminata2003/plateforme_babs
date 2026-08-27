@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { authApi } from "../api/auth";
 
 const TOKEN_KEY = "ubuntu_tech_access_token";
+const REFRESH_TOKEN_KEY = "ubuntu_tech_refresh_token";
 
 const AuthContext = createContext(null);
 
@@ -21,6 +22,7 @@ export function AuthProvider({ children }) {
       setUser(data);
     } catch {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       setUser(null);
     } finally {
       setLoading(false);
@@ -34,6 +36,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const { data } = await authApi.login({ email, password });
     localStorage.setItem(TOKEN_KEY, data.access);
+    localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh);
     await loadUser();
   }
 
@@ -45,6 +48,7 @@ export function AuthProvider({ children }) {
 
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     setUser(null);
   }
 

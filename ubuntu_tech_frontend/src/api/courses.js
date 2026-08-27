@@ -55,14 +55,18 @@ export const liveSessionsApi = {
   create: (payload) => api.post("/live-sessions/", payload),
   register: (id) => api.post(`/live-sessions/${id}/register/`),
   participants: (id) => api.get(`/live-sessions/${id}/participants/`),
+  notify: (id, userIds = [], emails = []) =>
+    api.post(`/live-sessions/${id}/notify/`, {
+      user_ids: userIds,
+      emails,
+    }),
 };
 
 // ===================== PAYMENTS =====================
 // Le backend gère UN SEUL forfait pour toute la formation (Enrollment n'est pas
 // lié à un module précis) : pas de paiement "par module".
 export const paymentsApi = {
-  initiate: ({ itemName, amount }) =>
-    api.post("/payments/initiate/", { item_name: itemName, amount }),
+  initiate: () => api.post("/payments/initiate/"),
   mine: () => api.get("/payments/payments/"),
 };
 

@@ -2,6 +2,7 @@ import json
 import logging
 
 from django.utils import timezone
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import HttpResponse
@@ -31,15 +32,17 @@ class InitiatePaymentView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        item_name = "Formation Ubuntu Tech - Accès complet"
+        amount = settings.COURSE_PRICE_XOF
         payment = Payment.objects.create(
             user=request.user,
-            item_name=data["item_name"],
-            amount=data["amount"],
+            item_name=item_name,
+            amount=amount,
         )
 
         response = PaytechService.request_payment(
-            item_name=data["item_name"],
-            item_price=data["amount"],
+            item_name=item_name,
+            item_price=amount,
             ref_command=str(payment.ref_command),
             custom_field={"user_id": request.user.id, "payment_id": payment.id},
             target_payment=data.get("target_payment", ""),

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { modulesApi, paymentsApi } from "../api/courses.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
-const PRICE_FCFA = 75000; // à remplacer par le tarif réel
+const PRICE_FCFA = 45000;
 
 export default function Courses() {
   const { user, refreshUser } = useAuth();
@@ -24,10 +24,7 @@ export default function Courses() {
     setPaying(true);
     setError("");
     try {
-      const { data } = await paymentsApi.initiate({
-        itemName: "Formation Ubuntu Tech - Accès complet",
-        amount: PRICE_FCFA,
-      });
+      const { data } = await paymentsApi.initiate();
       window.location.href = data.redirect_url;
     } catch {
       setError("Le paiement n'a pas pu être initié. Réessaie dans un instant.");

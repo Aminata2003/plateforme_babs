@@ -19,4 +19,29 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const refreshToken = localStorage.getItem("ubuntu_tech_refresh_token");
+    const isAuthRequest = originalRequest?.url?.includes("/auth/");
+
+    if (error.response?.status !== 401 || originalRequest?._retry || !refreshToken || isAuthRequest) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+    try {
+      const { data } = await api.post("/auth/refresh/", { refresh: refreshToken });
+      localStorage.setItem("ubuntu_tech_access_token", data.access);
+      originalRequest.headers.Authorization = `Bearer ${data.access}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      localStorage.removeItem("ubuntu_tech_access_token");
+      localStorage.removeItem("ubuntu_tech_refresh_token");
+      return Promise.reject(refreshError);
+    }
+  }
+);
+
 export default api;

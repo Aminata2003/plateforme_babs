@@ -102,12 +102,20 @@ class ModuleSerializer(serializers.ModelSerializer):
     def get_lessons(self, obj):
         queryset = obj.lessons.all().order_by("order")
         if not self._is_staff():
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            if not user or not Enrollment.objects.filter(user=user, is_active=True).exists():
+                return []
             queryset = queryset.filter(is_published=True)
         return LessonSerializer(queryset, many=True, context=self.context).data
 
     def get_lessons_count(self, obj):
         if self._is_staff():
             return obj.lessons.count()
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not Enrollment.objects.filter(user=user, is_active=True).exists():
+            return 0
         return obj.lessons.filter(is_published=True).count()
 
 
@@ -148,6 +156,23 @@ class SubmissionSerializer(serializers.ModelSerializer):
 
     def get_user_full_name(self, obj):
         return obj.user.get_full_name()
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if self.instance and user and not (user.is_admin or user.is_formateur):
+            protected_fields = {"devoir", "grade", "feedback", "user"}
+            if protected_fields.intersection(attrs):
+                raise serializers.ValidationError(
+                    "La note et les informations de correction sont réservées à l'équipe pédagogique."
+                )
+        return attrs
+
+
+class SubmissionCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Submission
+        fields = ["devoir", "file", "comment"]
 
 
 class LessonProgressSerializer(serializers.ModelSerializer):

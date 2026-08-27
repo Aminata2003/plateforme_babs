@@ -22,6 +22,19 @@ class IsAdminOrFormateur(BasePermission):
         return request.user.is_admin or request.user.is_formateur
 
 
+class IsActiveLearnerOrStaff(BasePermission):
+    """Autorise les apprenants uniquement après validation de leur inscription."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not (user and user.is_authenticated):
+            return False
+        if user.is_admin or user.is_formateur:
+            return True
+        from apps.courses.models import Enrollment
+        return Enrollment.objects.filter(user=user, is_active=True).exists()
+
+
 class IsOwnerOrAdmin(BasePermission):
     """Un apprenant ne peut voir/modifier que ses propres données (soumissions, résultats de quiz)."""
 

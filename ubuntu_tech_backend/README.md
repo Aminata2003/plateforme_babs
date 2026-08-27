@@ -76,9 +76,19 @@ ubuntu_tech_backend/
 
 ## Installation
 
+### Prérequis
+
+- Python 3.12 ou supérieur
+- Git
+- PostgreSQL en production (SQLite suffit en développement)
+- Node.js 18 ou supérieur et npm pour le frontend
+- ngrok ou un autre tunnel HTTPS pour tester les notifications PayTech en local
+
+### Linux/macOS
+
 ```bash
 python -m venv venv
-source venv/bin/activate        # Windows : venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env             # puis renseigner les variables (voir ci-dessous)
@@ -88,10 +98,29 @@ python manage.py createsuperuser # crée automatiquement un compte role=admin
 python manage.py runserver
 ```
 
+### Windows PowerShell
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Sous CMD, activez l’environnement avec `venv\Scripts\activate` et copiez l’exemple avec
+`copy .env.example .env`.
+
 Le serveur écoute par défaut sur `http://127.0.0.1:8000`.
 
 > Sans `DATABASE_URL` défini, le projet utilise SQLite pour tester rapidement en local.
 > Pour la production, définir `DATABASE_URL` vers une base PostgreSQL.
+>
+> Les migrations ne créent aucun contenu initial : ajoutez ensuite les modules, leçons et
+> sessions depuis l’interface d’administration.
 
 ## Variables d'environnement
 
@@ -101,8 +130,10 @@ Le serveur écoute par défaut sur `http://127.0.0.1:8000`.
 | `DEBUG` | Mode debug | `True` |
 | `ALLOWED_HOSTS` | Hôtes autorisés, séparés par virgules | `*` |
 | `DATABASE_URL` | URL de connexion PostgreSQL | SQLite local si absent |
-| `CORS_ALLOWED_ORIGINS` | Origines front autorisées (prod uniquement) | — |
+| `CORS_ALLOWED_ORIGINS` | Origines front autorisées, séparées par virgules | — |
 | `FRONTEND_URL` | Base des liens envoyés par email (ex. réinit. mot de passe) | `http://localhost:3000` |
+| `CERTIFICATE_VERIFY_BASE_URL` | Base des URLs publiques de vérification | — |
+| `COURSE_PRICE_XOF` | Prix du forfait unique en FCFA | `45000` |
 | `PAYTECH_API_KEY` / `PAYTECH_API_SECRET` | Identifiants PayTech | — |
 | `PAYTECH_ENV` | `test` ou `production` | `test` |
 | `PAYTECH_IPN_URL` | URL de notification PayTech (doit être en **HTTPS**) | — |
@@ -146,10 +177,8 @@ table des variables d'environnement.
 
 Points identifiés pendant le développement, utiles pour une revue :
 
-- **Accès aux modules non forcé côté serveur** : la lecture des modules/leçons publiés n'est
-  pas encore strictement bloquée pour un apprenant non inscrit (`Enrollment.is_active=False`)
-  au niveau de l'API — le blocage est fait côté front-end. À renforcer côté backend avant une
-  mise en production si c'est jugé nécessaire.
+- **Accès aux contenus payants** : les modules restent visibles dans le catalogue, mais les
+  leçons, quiz, devoirs, sessions et certificats nécessitent une inscription active.
 - **`env=test` PayTech** : tant que le compte PayTech n'est pas activé en production, les
   paiements restent en mode test (débit fictif).
 - **NINEA sur le certificat** : actuellement en dur dans `apps/certificates/generator.py`
